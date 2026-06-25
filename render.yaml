@@ -2,6 +2,7 @@ services:
   - type: web
     name: avani-loan-agents
     env: node
+    plan: free
     region: frankfurt # You can change this to your preferred region (e.g., oregon, ohio)
     buildCommand: npm install && npm run build
     startCommand: npm start
