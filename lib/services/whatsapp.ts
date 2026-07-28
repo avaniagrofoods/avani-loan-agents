@@ -117,7 +117,7 @@ Email: enquiry@avanifinserv.com`;
   }
 }
 
-export async function sendWhatsAppMeta(lead: Lead, event_type: string = 'interested'): Promise<SyncResult> {
+export async function sendWhatsAppMeta(lead: Lead, templateName: string = 'personal_loan_inquiry', templateParams: string[] = []): Promise<SyncResult> {
   const token = process.env.WHATSAPP_API_TOKEN || process.env.WHATSAPP_TOKEN;
   const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
@@ -136,14 +136,13 @@ export async function sendWhatsAppMeta(lead: Lead, event_type: string = 'interes
     toPhone = '91' + toPhone; // default to India
   }
   
-  // Determine template based on event_type and loan type
-  let templateName = "personal_loan_inquiry";
+  // Use passed params or default to name
+  const paramValues = templateParams.length > 0 ? templateParams : [lead.name || "Customer"];
+  
   let components: any[] = [
     {
       type: "body",
-      parameters: [
-        { type: "text", text: lead.name || "Customer" }
-      ]
+      parameters: paramValues.map(p => ({ type: "text", text: p }))
     }
   ];
 

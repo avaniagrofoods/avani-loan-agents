@@ -181,7 +181,8 @@ export async function POST(request: Request) {
             sheets_synced: 0,
             make_synced: 0,
             pabbly_synced: 0,
-            pickyassist_synced: 0
+            pickyassist_synced: 0,
+            drip_status: "PAUSED" // Pause drip campaigns if they interact
           });
           await saveMessage(leadId, 'INBOUND', incomingText);
           dbMessages = await getContactMessages(fromPhone);

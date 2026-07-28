@@ -75,6 +75,18 @@ model Contact {
   tags          Tag[]
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
+
+  // Drip Campaign Fields
+  dripStatus        DripStatus? @default(NONE)
+  currentDripDay    Int?        @default(0)
+  lastMessageSentAt DateTime?
+}
+
+enum DripStatus {
+  NONE
+  ACTIVE
+  PAUSED
+  COMPLETED
 }
 
 enum LeadStatus {

@@ -22,6 +22,7 @@ export interface Lead {
   pickyassist_synced: number;
   employment_history?: string | null;
   lead_score_tag?: string | null;
+  drip_status?: string | null;
   created_at?: string;
 }
 
@@ -109,57 +110,69 @@ export async function saveLead(lead: Lead): Promise<string> {
 
   if (existing) {
     // Update
+    let updateData: any = {
+      name: lead.name,
+      email: lead.email,
+      loanType: lead.loan_type,
+      loanAmount: lead.loan_amount,
+      income: lead.monthly_income,
+      employmentType: lead.employment_type,
+      status: mapStatusToEnum(lead.eligibility_status),
+      eligibilityReason: lead.eligibility_reason,
+      source: lead.source,
+      callSid: lead.call_sid,
+      transcript: lead.transcript,
+      recordingUrl: lead.recording_url,
+      hubspotSynced: lead.hubspot_synced,
+      sheetsSynced: lead.sheets_synced,
+      makeSynced: lead.make_synced,
+      pabblySynced: lead.pabbly_synced,
+      pickyassistSynced: lead.pickyassist_synced,
+      employmentHistory: lead.employment_history,
+      ...(tagConnect ? { tags: tagConnect } : {})
+    };
+    
+    if (lead.drip_status) {
+      updateData.dripStatus = lead.drip_status as any;
+    }
+
     const updated = await prisma.contact.update({
       where: { phone: lead.phone },
-      data: {
-        name: lead.name,
-        email: lead.email,
-        loanType: lead.loan_type,
-        loanAmount: lead.loan_amount,
-        income: lead.monthly_income,
-        employmentType: lead.employment_type,
-        status: mapStatusToEnum(lead.eligibility_status),
-        eligibilityReason: lead.eligibility_reason,
-        source: lead.source,
-        callSid: lead.call_sid,
-        transcript: lead.transcript,
-        recordingUrl: lead.recording_url,
-        hubspotSynced: lead.hubspot_synced,
-        sheetsSynced: lead.sheets_synced,
-        makeSynced: lead.make_synced,
-        pabblySynced: lead.pabbly_synced,
-        pickyassistSynced: lead.pickyassist_synced,
-        employmentHistory: lead.employment_history,
-        ...(tagConnect ? { tags: tagConnect } : {})
-      }
+      data: updateData
     });
     return updated.id;
   } else {
     // Create
+    let createData: any = {
+      workspaceId,
+      phone: lead.phone,
+      name: lead.name,
+      email: lead.email,
+      loanType: lead.loan_type,
+      loanAmount: lead.loan_amount,
+      income: lead.monthly_income,
+      employmentType: lead.employment_type,
+      status: mapStatusToEnum(lead.eligibility_status),
+      eligibilityReason: lead.eligibility_reason,
+      source: lead.source,
+      callSid: lead.call_sid,
+      transcript: lead.transcript,
+      recordingUrl: lead.recording_url,
+      hubspotSynced: lead.hubspot_synced,
+      sheetsSynced: lead.sheets_synced,
+      makeSynced: lead.make_synced,
+      pabblySynced: lead.pabbly_synced,
+      pickyassistSynced: lead.pickyassist_synced,
+      employmentHistory: lead.employment_history,
+      ...(tagConnect ? { tags: tagConnect } : {})
+    };
+    
+    if (lead.drip_status) {
+      createData.dripStatus = lead.drip_status as any;
+    }
+
     const created = await prisma.contact.create({
-      data: {
-        workspaceId,
-        phone: lead.phone,
-        name: lead.name,
-        email: lead.email,
-        loanType: lead.loan_type,
-        loanAmount: lead.loan_amount,
-        income: lead.monthly_income,
-        employmentType: lead.employment_type,
-        status: mapStatusToEnum(lead.eligibility_status),
-        eligibilityReason: lead.eligibility_reason,
-        source: lead.source,
-        callSid: lead.call_sid,
-        transcript: lead.transcript,
-        recordingUrl: lead.recording_url,
-        hubspotSynced: lead.hubspot_synced,
-        sheetsSynced: lead.sheets_synced,
-        makeSynced: lead.make_synced,
-        pabblySynced: lead.pabbly_synced,
-        pickyassistSynced: lead.pickyassist_synced,
-        employmentHistory: lead.employment_history,
-        ...(tagConnect ? { tags: tagConnect } : {})
-      }
+      data: createData
     });
     return created.id;
   }
