@@ -205,3 +205,39 @@ model Project {
   contacts    Contact[]
   createdAt   DateTime  @default(now())
 }
+
+model CallLog {
+  id           String    @id @default(uuid())
+  callId       String    @unique
+  phoneNumber  String
+  startedAt    DateTime  @default(now())
+  endedAt      DateTime?
+  transcript   String?   @db.Text
+  createdAt    DateTime  @default(now())
+}
+
+model LeadResponse {
+  id             String    @id @default(uuid())
+  phoneNumber    String
+  fullName       String?
+  city           String?
+  email          String?
+  loanType       String?
+  employmentType String?
+  monthlyIncome  Float?
+  loanAmount     Float?
+  additionalData String?   @db.Text
+  createdAt      DateTime  @default(now())
+}
+
+model WhatsAppStatus {
+  id            String    @id @default(uuid())
+  phoneNumber   String
+  messageId     String?
+  status        String    // SENT, DELIVERED, READ, FAILED
+  attempts      Int       @default(0)
+  lastAttemptAt DateTime?
+  errorMessage  String?
+  createdAt     DateTime  @default(now())
+}
+
