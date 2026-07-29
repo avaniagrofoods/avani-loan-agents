@@ -7,34 +7,20 @@ import { calculateEMI } from '../../../lib/tools/calculators';
 import { saveLead } from '../../../lib/db/client';
 import { orchestrateLeadSync } from '../../../lib/services/orchestrator';
 
-// Allow responses up to 5 minutes long (Vercel hobby is 10s, pro is 15s/300s. We keep it standard).
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
 
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-
-    // Check for API key
-    if (!apiKey) {
-      console.warn("GEMINI_API_KEY is not defined in env variables. Web chat will use mock response mode.");
-      // Return a simulated readable response if API key is not present to avoid server crash
-      return new Response(
-        JSON.stringify({
-          error: "API Key Missing",
-          message: "Please configure your GEMINI_API_KEY in .env.local to activate the AI Agent."
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+    const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || 'AIzaSyAzz0LUgUt9DxicUZQmkoZv3zRh_EdWMlU').trim();
 
     const google = createGoogleGenerativeAI({
       apiKey: apiKey,
     });
 
     const result = await streamText({
-      model: google('gemini-2.5-flash'),
+      model: google('gemini-1.5-flash'),
       messages: convertToCoreMessages(messages),
       system: SYSTEM_PROMPT,
       tools: {
@@ -83,15 +69,13 @@ export async function POST(req: Request) {
             loanAmount: z.number().describe('Loan amount in INR (₹)'),
             monthlyIncome: z.number().describe('Monthly income in INR (₹)'),
             employmentType: z.string().describe('Employment type (e.g. Salaried, Self-Employed, Business Owner)'),
-            employmentHistory: z.string().optional().describe('Employment history of the applicant (e.g. current company, title, years of experience)'),
-            leadScoreTag: z.string().describe('The calculated lead score tag based on the logic (e.g. PL-HOT, BL-WARM)'),
-            crmStage: z.string().describe('The current CRM pipeline stage (e.g. QUALIFIED or DOCUMENTS_PENDING)')
+            employmentHistory: z.string().optional().describe('Employment history of the applicant'),
+            leadScoreTag: z.string().describe('The calculated lead score tag'),
+            crmStage: z.string().describe('The current CRM pipeline stage')
           }),
           execute: async ({ name, phone, email, loanType, loanAmount, monthlyIncome, employmentType, employmentHistory, leadScoreTag, crmStage }) => {
-            // First evaluate eligibility
             const evalResult = evaluateEligibility(loanType, loanAmount, monthlyIncome, employmentType);
 
-            // Construct lead object
             const leadData = {
               name,
               phone,
@@ -100,7 +84,7 @@ export async function POST(req: Request) {
               loan_amount: loanAmount,
               monthly_income: monthlyIncome,
               employment_type: employmentType,
-              eligibility_status: crmStage, // Use the stage determined by the AI
+              eligibility_status: crmStage,
               eligibility_reason: evalResult.reason,
               source: 'Web Chat' as const,
               employment_history: employmentHistory || undefined,
@@ -113,11 +97,7 @@ export async function POST(req: Request) {
             };
 
             try {
-              // Save to database
               const leadId = await saveLead(leadData);
-              
-              // Run background integrations sync
-              // We trigger this asynchronously so that the chat is not blocked
               orchestrateLeadSync(leadId).catch((err) => {
                 console.error(`Background sync failed for lead ID ${leadId}:`, err);
               });
