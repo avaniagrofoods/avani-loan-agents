@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { SYSTEM_PROMPT } from '../../../lib/agents/advisor-prompt';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { streamText, convertToCoreMessages } from 'ai';
 
 export const maxDuration = 30;
 
@@ -9,38 +9,24 @@ export async function POST(req: Request) {
 
     const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || 'AIzaSyAzz0LUgUt9DxicUZQmkoZv3zRh_EdWMlU').trim();
 
-    const formattedMessages = (messages || []).map((m: any) => ({
-      role: m.role === 'user' ? 'user' : 'model',
-      parts: [{ text: m.content || '' }]
-    }));
-
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: SYSTEM_PROMPT }]
-        },
-        contents: formattedMessages
-      })
+    const google = createGoogleGenerativeAI({
+      apiKey: apiKey,
     });
 
-    const data = await response.json();
-    const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Namaste! AVANI LOAN SERVICES side se aapka swagat hai. Main aapki personal/business loan eligibility check karne mein kaise madad kar sakta hoon?";
-
-    // Format for AI SDK stream / text response
-    return new Response(replyText, {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-      }
+    const result = await streamText({
+      model: google('gemini-1.5-flash'),
+      messages: convertToCoreMessages(messages || []),
+      system: `You are the AI Advisor for AVANI LOAN SERVICES, founded by Sachin Shinde in Latur, Maharashtra.
+You assist customers in Marathi, Hindi, or English for Personal Loans, Business Loans, Home Loans, Doctor Loans, CA Loans, and Education Loans up to ₹50 Lakhs.
+Be polite, professional, and guide them on eligibility criteria, document checklists, and EMI options.`,
     });
 
+    return result.toDataStreamResponse();
   } catch (error: any) {
     console.error("Error in API Chat Route:", error);
-    return new Response(
-      "Namaste! AVANI LOAN SERVICES side se aapka swagat hai. Main aapki loan eligibility aur document verification mein madad kar sakta hoon.",
-      { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }
-    );
+    return new Response("Namaste! AVANI LOAN SERVICES side se aapka swagat hai. Main aapki loan eligibility check karne mein kaise madad kar sakta hoon?", {
+      status: 200,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+    });
   }
 }

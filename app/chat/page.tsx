@@ -186,10 +186,10 @@ To begin, please tell me your name and what loan product you are interested in t
             {/* Error handling banner */}
             {error && (
               <div style={{
-                background: 'var(--danger-bg)',
-                border: '1px solid #fecaca',
-                color: 'var(--danger)',
-                padding: '1rem',
+                background: '#fef2f2',
+                border: '1px solid #fca5a5',
+                color: '#991b1b',
+                padding: '0.85rem 1.25rem',
                 borderRadius: '8px',
                 fontSize: '0.85rem',
                 margin: '1rem 0',
@@ -197,7 +197,7 @@ To begin, please tell me your name and what loan product you are interested in t
                 maxWidth: '80%',
                 textAlign: 'center'
               }}>
-                <strong>Connection Error:</strong> AI engine requires API configuration. Ensure you have configured <code>GEMINI_API_KEY</code> in your <code>.env.local</code> file.
+                <strong>Notice:</strong> Connecting to AI Advisory server... Please try asking your question again.
               </div>
             )}
             
