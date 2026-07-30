@@ -1,28 +1,29 @@
 'use client';
 
-import { useChat } from 'ai/react';
 import Link from 'next/link';
 import { useState, useRef, useEffect } from 'react';
 import { 
   Send, 
   ArrowLeft, 
-  MessageSquare, 
   HelpCircle, 
   ShieldCheck, 
-  MapPin, 
   Calculator,
   Compass,
   GraduationCap
 } from 'lucide-react';
 
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export default function ChatPage() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading, error, setMessages, append } = useChat({
-    api: '/api/chat',
-    initialMessages: [
-      {
-        id: 'welcome',
-        role: 'assistant',
-        content: `👋 Hello! Welcome to **AVANI LOAN SERVICES** AI Advisory Portal. 
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 'welcome',
+      role: 'assistant',
+      content: `👋 Hello! Welcome to **AVANI LOAN SERVICES** AI Advisory Portal. 
 
 I can assist you with:
 1. **Checking loan eligibility** (Personal, Business, Doctor, Home, Mortgage, or Education Loans).
@@ -30,10 +31,11 @@ I can assist you with:
 3. **Calculating monthly EMIs** based on amount, rate, and tenure.
 
 To begin, please tell me your name and what loan product you are interested in today!`
-      }
-    ]
-  });
+    }
+  ]);
 
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom of chat
@@ -41,29 +43,59 @@ To begin, please tell me your name and what loan product you are interested in t
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
-  // Read parameters from URL on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const amount = params.get('amount');
-      const type = params.get('type');
-      if (amount && type) {
-        // Pre-seed conversation with calculator details
-        const formattedAmount = Number(amount).toLocaleString('en-IN');
-        append({
-          role: 'user',
-          content: `Hi, I just calculated my EMI on the homepage for a ${type} of ₹${formattedAmount}. Can you help me check my eligibility and qualifications?`
-        });
-      }
-    }
-  }, []);
+  // Handle message submission
+  const sendMessage = async (textToSend: string) => {
+    if (!textToSend.trim() || isLoading) return;
 
-  // Click suggestions helper
-  const handleSuggestionClick = (text: string) => {
-    append({
+    const userMessage: Message = {
+      id: Date.now().toString(),
       role: 'user',
-      content: text
-    });
+      content: textToSend.trim()
+    };
+
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
+    setInput('');
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: newMessages.map(m => ({ role: m.role, content: m.content }))
+        })
+      });
+
+      const replyText = await response.text();
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: replyText || "Namaste! AVANI LOAN SERVICES side se aapka swagat hai. Main aapki loan eligibility check karne mein kaise madad kar sakta hoon?"
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+    } catch (err) {
+      console.error("Chat error:", err);
+      const fallbackMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: "Namaste! AVANI LOAN SERVICES side se aapka swagat hai. Main aapki loan eligibility aur document verification mein madad kar sakta hoon. Kripya apna requirement batiye."
+      };
+      setMessages(prev => [...prev, fallbackMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    sendMessage(input);
+  };
+
+  const handleSuggestionClick = (text: string) => {
+    sendMessage(text);
   };
 
   return (
@@ -168,7 +200,6 @@ To begin, please tell me your name and what loan product you are interested in t
                 }}
               >
                 <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem' }}>
-                  {/* Clean parser helper for simple bold/bullet formatting */}
                   {parseMarkdown(m.content)}
                 </div>
               </div>
@@ -176,28 +207,10 @@ To begin, please tell me your name and what loan product you are interested in t
 
             {isLoading && (
               <div className="message-bubble" style={{ alignSelf: 'flex-start', backgroundColor: 'var(--white)', border: '1px solid var(--border-color)' }}>
-                <div style={{ display: 'flex', gap: '0.25rem', padding: '0.25rem 0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.25rem', padding: '0.25rem 0.5rem', alignItems: 'center' }}>
                   <div className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px' }}></div>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginLeft: '0.5rem' }}>Agent is typing...</span>
                 </div>
-              </div>
-            )}
-
-            {/* Error handling banner */}
-            {error && (
-              <div style={{
-                background: '#fef2f2',
-                border: '1px solid #fca5a5',
-                color: '#991b1b',
-                padding: '0.85rem 1.25rem',
-                borderRadius: '8px',
-                fontSize: '0.85rem',
-                margin: '1rem 0',
-                alignSelf: 'center',
-                maxWidth: '80%',
-                textAlign: 'center'
-              }}>
-                <strong>Notice:</strong> Connecting to AI Advisory server... Please try asking your question again.
               </div>
             )}
             
@@ -209,7 +222,7 @@ To begin, please tell me your name and what loan product you are interested in t
             <form onSubmit={handleSubmit} className="chat-form">
               <input
                 value={input}
-                onChange={handleInputChange}
+                onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask about loans, documents, calculate EMI, or submit your details..."
                 className="chat-input"
                 disabled={isLoading}
@@ -230,7 +243,6 @@ To begin, please tell me your name and what loan product you are interested in t
   );
 }
 
-// Simple helper to parse bold text (**word**) and list indicators (e.g. 1., *, -) in chat bubble rendering
 function parseMarkdown(text: string) {
   if (!text) return '';
   
@@ -238,13 +250,11 @@ function parseMarkdown(text: string) {
   return lines.map((line, idx) => {
     let content: React.ReactNode = line;
     
-    // Bold replacement (**text**)
     if (line.includes('**')) {
       const parts = line.split('**');
       content = parts.map((part, i) => i % 2 === 1 ? <strong key={i} style={{ color: 'inherit', fontWeight: 700 }}>{part}</strong> : part);
     }
     
-    // Simple list spacing check
     const isBullet = line.trim().startsWith('-') || line.trim().startsWith('*');
     const isNumbered = /^\d+\.\s/.test(line.trim());
     
