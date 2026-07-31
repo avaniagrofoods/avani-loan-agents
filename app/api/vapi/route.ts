@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { saveLead } from '../../../lib/db/client';
 import { evaluateEligibility } from '../../../lib/tools/eligibility';
 import { orchestrateLeadSync } from '../../../lib/services/orchestrator';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { generateText } from 'ai';
 
 export async function POST(request: Request) {
   try {
@@ -25,10 +27,33 @@ export async function POST(request: Request) {
     const transcript = call?.transcript || "";
     const recordingUrl = call?.recordingUrl || "";
     const customerPhone = call?.customer?.number || "+919175635165"; // Default if not sent
-    const callSummary = call?.summary || "";
+    let callSummary = call?.summary || "";
 
     // Parse structured data from Vapi analysis
-    const structuredData = analysis?.structuredData || {};
+    let structuredData = analysis?.structuredData || {};
+    
+    // AI Fallback using Google AI Studio (Gemini) for summarizing transcript
+    if (transcript && (!structuredData.name || !structuredData.loanAmount)) {
+      try {
+        const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || 'AIzaSyAzz0LUgUt9DxicUZQmkoZv3zRh_EdWMlU').trim();
+        const google = createGoogleGenerativeAI({ apiKey });
+        
+        const aiSummary = await generateText({
+          model: google('gemini-1.5-flash'),
+          prompt: `Summarize this loan inquiry call transcript and extract JSON with fields: name, email, loanType, loanAmount (number), monthlyIncome (number), employmentType, employmentHistory. Transcript: "${transcript}"`
+        });
+        
+        callSummary = aiSummary.text;
+        // Basic JSON extraction
+        const jsonMatch = callSummary.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const aiData = JSON.parse(jsonMatch[0]);
+          structuredData = { ...structuredData, ...aiData };
+        }
+      } catch (err) {
+        console.error("Gemini AI Summarization Error:", err);
+      }
+    }
     
     // Fallback extraction from transcript/summary using regex
     const name = structuredData.name || extractName(transcript, callSummary) || "Voice Caller";
@@ -36,10 +61,10 @@ export async function POST(request: Request) {
     const loanType = structuredData.loanType || extractLoanType(transcript, callSummary) || "Personal Loan";
     
     const rawAmount = structuredData.loanAmount || extractAmount(transcript, "amount") || 500000;
-    const loanAmount = typeof rawAmount === 'string' ? parseFloat(rawAmount) : Number(rawAmount);
+    const loanAmount = typeof rawAmount === 'string' ? parseFloat(rawAmount.replace(/[^0-9.]/g, '')) : Number(rawAmount);
 
     const rawIncome = structuredData.monthlyIncome || extractAmount(transcript, "income") || 35000;
-    const monthlyIncome = typeof rawIncome === 'string' ? parseFloat(rawIncome) : Number(rawIncome);
+    const monthlyIncome = typeof rawIncome === 'string' ? parseFloat(rawIncome.replace(/[^0-9.]/g, '')) : Number(rawIncome);
 
     const employmentType = structuredData.employmentType || extractEmploymentType(transcript, callSummary) || "Salaried";
     const employmentHistory = structuredData.employmentHistory || extractEmploymentHistory(transcript, callSummary) || "";
