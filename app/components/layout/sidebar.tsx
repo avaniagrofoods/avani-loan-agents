@@ -44,7 +44,7 @@ export function Sidebar({ className = "" }: { className?: string }) {
         { name: "Webhook Events", icon: Globe, href: "/webhooks" },
         { name: "Gallery", icon: ImageIcon, href: "/gallery" },
         { name: "FAQ Bot", icon: HelpCircle, href: "/faq" },
-        { name: "Chatbot", icon: MessageSquare, href: "https://avani-loan-agents.onrender.com/dashboard", external: true },
+        { name: "Chatbot", icon: MessageSquare, href: "https://avani-loan-agents.vercel.app/dashboard", external: true },
         { name: "Ai assistant", icon: Bot, href: "/assistant" },
         { name: "Flows", icon: GitMerge, href: "/flows" },
       ]
